@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warehouse Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161b24;
+    --surface2: #1e2535;
+    --border: #2a3347;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --in: #10b981;
+    --in-dim: #064e3b;
+    --out: #f59e0b;
+    --out-dim: #451a03;
+    --update: #6366f1;
+    --update-dim: #1e1b4b;
+    --accent: #38bdf8;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'IBM Plex Sans Thai', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-logo span { color: var(--accent); }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--in);
+    box-shadow: 0 0 6px var(--in);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-label { font-size: 0.75rem; color: var(--in); font-weight: 500; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    gap: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    letter-spacing: 0.02em;
+  }
+  .tab-btn.active-in  { color: var(--in);     border-bottom-color: var(--in); }
+  .tab-btn.active-out { color: var(--out);    border-bottom-color: var(--out); }
+  .tab-btn.active-upd { color: var(--update); border-bottom-color: var(--update); }
+
+  /* MAIN */
+  .main { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+  /* PANEL */
+  .panel { display: none; animation: fadeIn 0.2s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  /* BADGE */
+  .mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+  .badge-in  { background:var(--in-dim);     color:var(--in);     border:1px solid var(--in); }
+  .badge-out { background:var(--out-dim);    color:var(--out);    border:1px solid var(--out); }
+  .badge-upd { background:var(--update-dim); color:var(--update); border:1px solid var(--update); }
+
+  /* SCANNER CARD */
+  .scanner-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .scanner-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .scanner-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .cam-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+  }
+  .qr-reader-wrap {
+    position: relative;
+    background: #000;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-reader-wrap > div[id^="reader"] { width:100%!important; }
+  .qr-reader-wrap > div[id^="reader"] > * { border:none!important; }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .scan-box {
+    width: 180px; height: 180px;
+    border-radius: 12px;
+    position: relative;
+  }
+  .scan-box::before,.scan-box::after,.scan-box span::before,.scan-box span::after {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-color: inherit;
+    border-style: solid;
+  }
+  .scan-box::before  { top:0;    left:0;  border-width:3px 0 0 3px; border-radius:6px 0 0 0; }
+  .scan-box::after   { top:0;    right:0; border-width:3px 3px 0 0; border-radius:0 6px 0 0; }
+  .scan-box span::before { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 6px; }
+  .scan-box span::after  { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 6px 0; }
+  .scan-line {
+    position: absolute;
+    left:10%; width:80%;
+    height: 2px;
+    border-radius: 2px;
+    animation: scanMove 2s linear infinite;
+    opacity: 0.8;
+  }
+  @keyframes scanMove { 0%{top:10%} 100%{top:90%} }
+  .scan-box-in  { border-color:var(--in); }
+  .scan-box-out { border-color:var(--out); }
+  .scan-box-upd { border-color:var(--update); }
+  .scan-line-in  { background:var(--in); }
+  .scan-line-out { background:var(--out); }
+  .scan-line-upd { background:var(--update); }
+
+  .scanner-controls {
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:active { transform:scale(0.97); }
+  .btn-start-in  { background:var(--in);     color:#fff; }
+  .btn-start-out { background:var(--out);    color:#000; }
+  .btn-start-upd { background:var(--update); color:#fff; }
+  .btn-stop  { background:var(--surface2); color:var(--danger); border:1px solid var(--danger); }
+  .btn-clear { background:var(--surface2); color:var(--muted); border:1px solid var(--border); margin-left:auto; }
+
+  /* STATUS BAR */
+  .status-bar {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-family: var(--mono);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+  }
+  .status-bar.ok    { background:#052e16; border-color:var(--in);     color:var(--in); }
+  .status-bar.warn  { background:#431407; border-color:var(--out);    color:var(--out); }
+  .status-bar.info  { background:#1e1b4b; border-color:var(--update); color:var(--update); }
+  .status-bar.error { background:#3b0101; border-color:var(--danger); color:var(--danger); }
+  .status-bar.dup   { background:#2a1400; border-color:var(--warning); color:var(--warning); }
+
+  /* QTY INPUT */
+  .qty-input-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .qty-input-label { font-size:0.8rem; color:var(--muted); font-weight:600; white-space:nowrap; }
+  .qty-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+  }
+  .qty-input:focus { border-color:var(--accent); }
+  .qty-hint { font-size:0.72rem; color:var(--muted); white-space:nowrap; }
+
+  /* SUMMARY + SUBMIT */
+  .summary-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .summary-label { font-size:0.8rem; color:var(--muted); font-weight:500; }
+  .summary-count { font-size:1.5rem; font-weight:700; font-family:var(--mono); }
+  .count-in  { color:var(--in); }
+  .count-out { color:var(--out); }
+  .count-upd { color:var(--update); }
+
+  .btn-submit {
+    padding: 11px 20px;
+    border: none;
+    border-radius: 9px;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .btn-submit:disabled { opacity:0.4; cursor:not-allowed; }
+  .btn-submit-in  { background:var(--in);     color:#fff; }
+  .btn-submit-out { background:var(--out);    color:#000; }
+  .btn-submit-upd { background:var(--update); color:#fff; }
+  .btn-submit:not(:disabled):hover { filter:brightness(1.1); }
+  .btn-submit:not(:disabled):active { transform:scale(0.97); }
+
+  .spinner {
+    width:14px; height:14px;
+    border:2px solid rgba(255,255,255,0.35);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* UPDATE FORM */
+  .update-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .update-form.visible { display:block; animation:fadeIn .2s ease; }
+  .form-row { margin-bottom:12px; }
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color:var(--update); }
+  .form-input-mono { font-family:var(--mono); }
+  .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .btn-confirm-upd {
+    width: 100%;
+    padding: 11px;
+    background: var(--update);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-confirm-upd:hover { opacity:.85; }
+
+  /* HISTORY TABLE */
+  .history-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .history-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .history-title { font-size:.85rem; font-weight:600; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; }
+  .history-count { font-size:.75rem; background:var(--surface2); color:var(--muted); padding:2px 8px; border-radius:100px; font-family:var(--mono); }
+  .history-list { max-height:360px; overflow-y:auto; }
+  .history-empty { padding:32px 16px; text-align:center; color:var(--muted); font-size:.85rem; }
+
+  .history-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    animation: fadeIn .2s ease;
+  }
+  .history-item:last-child { border-bottom:none; }
+  .history-item.dup-item { opacity:.5; }
+  .history-type {
+    width:28px; height:28px;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:.7rem;
+    font-weight:700;
+    flex-shrink:0;
+  }
+  .type-in  { background:var(--in-dim);     color:var(--in);     border:1px solid var(--in); }
+  .type-out { background:var(--out-dim);    color:var(--out);    border:1px solid var(--out); }
+  .type-upd { background:var(--update-dim); color:var(--update); border:1px solid var(--update); }
+  .type-dup { background:#2a1800; color:var(--warning); border:1px solid var(--warning); font-size:.6rem; }
+  .history-info { min-width:0; }
+  .history-product { font-size:.85rem; font-weight:600; font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .history-sub { font-size:.72rem; color:var(--muted); margin-top:1px; }
+  .history-sub.dup-label { color:var(--warning); font-weight:600; }
+  .history-time { font-size:.72rem; color:var(--muted); font-family:var(--mono); text-align:right; flex-shrink:0; }
+  .qty-badge { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-size:.75rem; font-family:var(--mono); color:var(--text); flex-shrink:0; }
+
+  /* TOAST */
+  #toast-wrap { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+  .toast { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 18px; font-size:.85rem; font-weight:600; box-shadow:0 4px 20px rgba(0,0,0,.5); animation:toastIn .3s ease,toastOut .3s ease 2.7s forwards; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+  .toast-ok    { border-color:var(--in);      color:var(--in); }
+  .toast-warn  { border-color:var(--warning); color:var(--warning); }
+  .toast-error { border-color:var(--danger);  color:var(--danger); }
+  @keyframes toastIn  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:var(--surface); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* Flash */
+  @keyframes flashSuccess { 0%{box-shadow:0 0 0 0 rgba(16,185,129,0)} 30%{box-shadow:0 0 0 8px rgba(16,185,129,.4)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)} }
+  @keyframes flashWarn    { 0%{box-shadow:0 0 0 0 rgba(245,158,11,0)} 30%{box-shadow:0 0 0 8px rgba(245,158,11,.4)} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0)} }
+  @keyframes flashUpd     { 0%{box-shadow:0 0 0 0 rgba(99,102,241,0)} 30%{box-shadow:0 0 0 8px rgba(99,102,241,.4)} 100%{box-shadow:0 0 0 0 rgba(99,102,241,0)} }
+  @keyframes flashDup     { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0)} 30%{box-shadow:0 0 0 8px rgba(239,68,68,.45)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+  .flash-in  { animation:flashSuccess .6s ease; }
+  .flash-out { animation:flashWarn .6s ease; }
+  .flash-upd { animation:flashUpd .6s ease; }
+  .flash-dup { animation:flashDup .6s ease; }
+</style>
+</head>
+<body>
+
+<div id="toast-wrap"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo"><span>📦</span> Warehouse Scanner</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="status-dot"></div>
+    <div class="status-label">ออนไลน์</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active-in" id="tab-in"  onclick="switchTab('in')">📥 รับเข้า</button>
+  <button class="tab-btn"           id="tab-out" onclick="switchTab('out')">📤 เบิกออก</button>
+  <button class="tab-btn"           id="tab-upd" onclick="switchTab('upd')">🔄 อัปเดต</button>
+</div>
+
+<div class="main">
+
+<!-- ══ PANEL IN ══ -->
+<div class="panel active" id="panel-in">
+  <div class="mode-badge badge-in">📥 โหมดรับสินค้าเข้า (IN)</div>
+
+  <div class="scanner-card" id="card-in">
+    <div class="scanner-card-header">
+      <div class="scanner-card-title">📷 สแกน QR / Barcode</div>
+      <select class="cam-select" id="cam-select-in"></select>
+    </div>
+    <div class="qr-reader-wrap">
+      <div id="reader-in"></div>
+      <div class="scan-overlay" id="overlay-in" style="display:none;">
+        <div class="scan-box scan-box-in"><span></span><div class="scan-line scan-line-in"></div></div>
+      </div>
+    </div>
+    <div class="scanner-controls">
+      <button class="btn btn-start-in" id="btn-start-in" onclick="startScanner('in')">▶ เริ่มสแกน</button>
+      <button class="btn btn-stop"     id="btn-stop-in"  onclick="stopScanner('in')" style="display:none;">⏹ หยุด</button>
+      <button class="btn btn-clear"    onclick="clearSession('in')">🗑 ล้างรายการ</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-in">⏳ รอเริ่มสแกน...</div>
+
+  <div class="qty-input-wrap">
+    <div class="qty-input-label">จำนวน / รายการ</div>
+    <input class="qty-input" id="qty-in" type="number" value="1" min="1">
+    <div class="qty-hint">ชิ้น / คัน / ลัง</div>
+  </div>
+
+  <div class="summary-bar">
+    <div>
+      <div class="summary-label">รหัสไม่ซ้ำที่สแกนได้</div>
+      <div class="summary-count count-in" id="unique-in">0</div>
+    </div>
+    <button class="btn-submit btn-submit-in" id="submit-in" onclick="submitData('in')" disabled>
+      <span class="spinner" id="spin-in"></span>☁️ ส่งไป Google Sheet
+    </button>
+  </div>
+
+  <div class="history-card">
+    <div class="history-header">
+      <div class="history-title">📋 รายการสแกน (ตรวจสอบก่อนส่ง)</div>
+      <div class="history-count" id="count-in">0</div>
+    </div>
+    <div class="history-list" id="hist-in">
+      <div class="history-empty">ยังไม่มีรายการ — กด ▶ เริ่มสแกน</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PANEL OUT ══ -->
+<div class="panel" id="panel-out">
+  <div class="mode-badge badge-out">📤 โหมดเบิกสินค้าออก (OUT)</div>
+
+  <div class="scanner-card" id="card-out">
+    <div class="scanner-card-header">
+      <div class="scanner-card-title">📷 สแกน QR / Barcode</div>
+      <select class="cam-select" id="cam-select-out"></select>
+    </div>
+    <div class="qr-reader-wrap">
+      <div id="reader-out"></div>
+      <div class="scan-overlay" id="overlay-out" style="display:none;">
+        <div class="scan-box scan-box-out"><span></span><div class="scan-line scan-line-out"></div></div>
+      </div>
+    </div>
+    <div class="scanner-controls">
+      <button class="btn btn-start-out" id="btn-start-out" onclick="startScanner('out')">▶ เริ่มสแกน</button>
+      <button class="btn btn-stop"      id="btn-stop-out"  onclick="stopScanner('out')" style="display:none;">⏹ หยุด</button>
+      <button class="btn btn-clear"     onclick="clearSession('out')">🗑 ล้างรายการ</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-out">⏳ รอเริ่มสแกน...</div>
+
+  <div class="qty-input-wrap">
+    <div class="qty-input-label">จำนวน / รายการ</div>
+    <input class="qty-input" id="qty-out" type="number" value="1" min="1">
+    <div class="qty-hint">ชิ้น / คัน / ลัง</div>
+  </div>
+
+  <div class="summary-bar">
+    <div>
+      <div class="summary-label">รหัสไม่ซ้ำที่สแกนได้</div>
+      <div class="summary-count count-out" id="unique-out">0</div>
+    </div>
+    <button class="btn-submit btn-submit-out" id="submit-out" onclick="submitData('out')" disabled>
+      <span class="spinner" id="spin-out"></span>☁️ ส่งไป Google Sheet
+    </button>
+  </div>
+
+  <div class="history-card">
+    <div class="history-header">
+      <div class="history-title">📋 รายการสแกน (ตรวจสอบก่อนส่ง)</div>
+      <div class="history-count" id="count-out">0</div>
+    </div>
+    <div class="history-list" id="hist-out">
+      <div class="history-empty">ยังไม่มีรายการ — กด ▶ เริ่มสแกน</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PANEL UPDATE ══ -->
+<div class="panel" id="panel-upd">
+  <div class="mode-badge badge-upd">🔄 โหมดอัปเดตสต็อก (UPDATE)</div>
+
+  <div class="scanner-card" id="card-upd">
+    <div class="scanner-card-header">
+      <div class="scanner-card-title">📷 สแกน QR / Barcode</div>
+      <select class="cam-select" id="cam-select-upd"></select>
+    </div>
+    <div class="qr-reader-wrap">
+      <div id="reader-upd"></div>
+      <div class="scan-overlay" id="overlay-upd" style="display:none;">
+        <div class="scan-box scan-box-upd"><span></span><div class="scan-line scan-line-upd"></div></div>
+      </div>
+    </div>
+    <div class="scanner-controls">
+      <button class="btn btn-start-upd" id="btn-start-upd" onclick="startScanner('upd')">▶ เริ่มสแกน</button>
+      <button class="btn btn-stop"      id="btn-stop-upd"  onclick="stopScanner('upd')" style="display:none;">⏹ หยุด</button>
+      <button class="btn btn-clear"     onclick="clearSession('upd')">🗑 ล้างรายการ</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-upd">⏳ รอเริ่มสแกน...</div>
+
+  <!-- Update form -->
+  <div class="update-form" id="update-form">
+    <div class="form-row">
+      <label class="form-label">รหัสสินค้าที่สแกน</label>
+      <input class="form-input form-input-mono" id="upd-code" readonly placeholder="— รอสแกน —">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">จำนวนปัจจุบัน</label>
+        <input class="form-input" id="upd-current" type="number" min="0" placeholder="0">
+      </div>
+      <div>
+        <label class="form-label">จำนวนใหม่</label>
+        <input class="form-input" id="upd-new" type="number" min="0" placeholder="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">หมายเหตุ (ถ้ามี)</label>
+      <input class="form-input" id="upd-note" type="text" placeholder="ตรวจนับ / ปรับยอด / ฯลฯ">
+    </div>
+    <button class="btn-confirm-upd" onclick="confirmUpdate()">✅ ยืนยันและเพิ่มในรายการ</button>
+  </div>
+
+  <div class="summary-bar">
+    <div>
+      <div class="summary-label">รายการอัปเดต</div>
+      <div class="summary-count count-upd" id="unique-upd">0</div>
+    </div>
+    <button class="btn-submit btn-submit-upd" id="submit-upd" onclick="submitData('upd')" disabled>
+      <span class="spinner" id="spin-upd"></span>☁️ ส่งไป Google Sheet
+    </button>
+  </div>
+
+  <div class="history-card">
+    <div class="history-header">
+      <div class="history-title">📋 รายการสแกน (ตรวจสอบก่อนส่ง)</div>
+      <div class="history-count" id="count-upd">0</div>
+    </div>
+    <div class="history-list" id="hist-upd">
+      <div class="history-empty">ยังไม่มีรายการ — สแกนสินค้าและกรอกข้อมูล</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG  ← ใส่ URL จาก Apps Script ที่นี่
+// ══════════════════════════════════════════════════════
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhIPpZw0nRpdvO7yzQx51G_vZvfR9gXuwmaIkujbJYQrLWE7qWL08n_Ln9Rs_EQEjACw/exec';
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const scanners  = { in: null, out: null, upd: null };
+const running   = { in: false, out: false, upd: false };
+const sessions  = { in: [], out: [], upd: [] };   // all scan entries (including dups)
+const scanned   = { in: new Set(), out: new Set(), upd: new Set() }; // unique barcodes only
+let lastScan     = { in:'', out:'', upd:'' };
+let lastScanTime = { in:0,  out:0,  upd:0 };
+let pendingUpdCode = null;
+
+// ══════════════════════════════════════════════════════
+// INIT CAMERAS
+// ══════════════════════════════════════════════════════
+async function loadCameras() {
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    ['in','out','upd'].forEach(m => {
+      const sel = document.getElementById('cam-select-' + m);
+      sel.innerHTML = cameras.map((c,i) =>
+        `<option value="${c.id}">${c.label || 'กล้อง '+(i+1)}</option>`
+      ).join('');
+    });
+  } catch(e) { console.warn('getCameras:', e); }
+}
+loadCameras();
+
+// ══════════════════════════════════════════════════════
+// TAB SWITCH
+// ══════════════════════════════════════════════════════
+function switchTab(mode) {
+  ['in','out','upd'].forEach(m => {
+    document.getElementById('panel-'+m).classList.remove('active');
+    document.getElementById('tab-'+m).className = 'tab-btn';
+  });
+  document.getElementById('panel-'+mode).classList.add('active');
+  document.getElementById('tab-'+mode).classList.add('active-'+mode);
+}
+
+// ══════════════════════════════════════════════════════
+// SCANNER START / STOP
+// ══════════════════════════════════════════════════════
+async function startScanner(mode) {
+  if (running[mode]) return;
+  const camId = document.getElementById('cam-select-'+mode).value;
+
+  if (!scanners[mode]) {
+    scanners[mode] = new Html5Qrcode('reader-'+mode, { verbose: false });
+  }
+
+  try {
+    await scanners[mode].start(
+      camId || { facingMode: 'environment' },
+      { fps:12, qrbox:{width:200,height:200}, aspectRatio:1.2,
+        supportedScanTypes:[Html5QrcodeScanType.SCAN_TYPE_CAMERA] },
+      (text) => onScan(mode, text),
+      () => {}
+    );
+    running[mode] = true;
+    document.getElementById('overlay-'+mode).style.display = 'flex';
+    document.getElementById('btn-start-'+mode).style.display = 'none';
+    document.getElementById('btn-stop-'+mode).style.display  = 'flex';
+    setStatus(mode, 'scanning', '🎯 กำลังสแกน... นำ barcode เข้าใกล้กล้อง');
+  } catch(e) {
+    setStatus(mode, 'error', '⚠️ เปิดกล้องไม่ได้: ' + e.message);
+  }
+}
+
+async function stopScanner(mode) {
+  if (!running[mode]) return;
+  try { await scanners[mode].stop(); scanners[mode] = null; } catch(e) {}
+  running[mode] = false;
+  document.getElementById('btn-start-'+mode).style.display = 'flex';
+  document.getElementById('btn-stop-'+mode).style.display  = 'none';
+  document.getElementById('overlay-'+mode).style.display   = 'none';
+  setStatus(mode, 'idle', `⏹ หยุดสแกนแล้ว — รวม ${scanned[mode].size} รหัสไม่ซ้ำ`);
+}
+
+// ══════════════════════════════════════════════════════
+// ON SCAN SUCCESS
+// ══════════════════════════════════════════════════════
+function onScan(mode, text) {
+  const now = Date.now();
+  if (text === lastScan[mode] && (now - lastScanTime[mode]) < 2000) return;
+  lastScan[mode]     = text;
+  lastScanTime[mode] = now;
+
+  const time = new Date().toLocaleTimeString('th-TH');
+
+  // UPDATE mode — show form
+  if (mode === 'upd') {
+    pendingUpdCode = text;
+    document.getElementById('upd-code').value    = text;
+    document.getElementById('upd-current').value = '';
+    document.getElementById('upd-new').value     = '';
+    document.getElementById('upd-note').value    = '';
+    document.getElementById('update-form').classList.add('visible');
+    setStatus('upd','info','🔍 สแกนแล้ว: '+text+' — กรอกจำนวนด้านล่าง');
+    flashCard('upd'); vibrate();
+    return;
+  }
+
+  // IN / OUT mode
+  const qty   = parseInt(document.getElementById('qty-'+mode).value) || 1;
+  const isDup = scanned[mode].has(text);
+
+  sessions[mode].unshift({ barcode:text, qty, time, isDup });
+
+  if (isDup) {
+    setStatus(mode,'dup','⚠️ รหัสซ้ำ: '+text+' — ไม่นับซ้ำ');
+    flashCard(mode, true);
+  } else {
+    scanned[mode].add(text);
+    const label = mode==='in' ? 'รับเข้า' : 'เบิกออก';
+    setStatus(mode, mode==='in'?'ok':'warn', `✅ ${label}: ${text} (จำนวน: ${qty})`);
+    flashCard(mode, false);
+  }
+  vibrate();
+  renderSession(mode);
+  updateSubmitBtn(mode);
+}
+
+// ══════════════════════════════════════════════════════
+// CONFIRM UPDATE ENTRY
+// ══════════════════════════════════════════════════════
+function confirmUpdate() {
+  const code    = document.getElementById('upd-code').value;
+  const current = document.getElementById('upd-current').value;
+  const newQty  = document.getElementById('upd-new').value;
+  const note    = document.getElementById('upd-note').value;
+
+  if (!code)     { showToast('⚠️ กรุณาสแกนสินค้าก่อน','warn'); return; }
+  if (!newQty)   { showToast('⚠️ กรุณากรอกจำนวนใหม่','warn');  return; }
+
+  const isDup = scanned['upd'].has(code);
+  const time  = new Date().toLocaleTimeString('th-TH');
+
+  sessions['upd'].unshift({ barcode:code, qty:parseInt(newQty), current:current||'?', note, time, isDup });
+
+  if (!isDup) {
+    scanned['upd'].add(code);
+    setStatus('upd','ok',`✅ เพิ่มรายการ: ${code} (${current||'?'} → ${newQty})`);
+  } else {
+    setStatus('upd','dup',`⚠️ รหัสซ้ำ: ${code} — ไม่นับซ้ำ`);
+  }
+
+  document.getElementById('update-form').classList.remove('visible');
+  ['upd-code','upd-current','upd-new','upd-note'].forEach(id =>
+    { document.getElementById(id).value = ''; }
+  );
+  pendingUpdCode = null;
+  renderSession('upd');
+  updateSubmitBtn('upd');
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER TABLE
+// ══════════════════════════════════════════════════════
+const modeLabel = { in:'IN', out:'OUT', upd:'UPD' };
+
+function renderSession(mode) {
+  const list   = document.getElementById('hist-'+mode);
+  const arr    = sessions[mode];
+  const unique = scanned[mode].size;
+
+  document.getElementById('count-'+mode).textContent  = arr.length;
+  document.getElementById('unique-'+mode).textContent = unique;
+
+  if (!arr.length) {
+    list.innerHTML = '<div class="history-empty">ยังไม่มีรายการ</div>';
+    return;
+  }
+
+  list.innerHTML = arr.map(h => {
+    const typeClass = h.isDup ? 'type-dup' : 'type-'+mode;
+    const typeText  = h.isDup ? 'DUP' : modeLabel[mode];
+    const itemClass = h.isDup ? 'history-item dup-item' : 'history-item';
+
+    let subText = '';
+    if (h.isDup) {
+      subText = '<div class="history-sub dup-label">⚠️ รหัสซ้ำ ไม่สามารถสแกนได้</div>';
+    } else if (mode === 'upd') {
+      subText = `<div class="history-sub">${esc(String(h.current))} → ${esc(String(h.qty))}${h.note?' • '+esc(h.note):''}</div>`;
+    }
+
+    return `
+      <div class="${itemClass}">
+        <div class="history-type ${typeClass}">${typeText}</div>
+        <div class="history-info">
+          <div class="history-product">${esc(h.barcode)}</div>
+          ${subText}
+        </div>
+        <div class="qty-badge">×${h.qty}</div>
+        <div class="history-time">${h.time}</div>
+      </div>`;
+  }).join('');
+}
+
+function updateSubmitBtn(mode) {
+  document.getElementById('submit-'+mode).disabled = scanned[mode].size === 0;
+}
+
+// ══════════════════════════════════════════════════════
+// CLEAR SESSION
+// ══════════════════════════════════════════════════════
+function clearSession(mode) {
+  sessions[mode] = [];
+  scanned[mode].clear();
+  renderSession(mode);
+  updateSubmitBtn(mode);
+  setStatus(mode,'idle','🗑 ล้างรายการแล้ว');
+  if (mode==='upd') document.getElementById('update-form').classList.remove('visible');
+}
+
+// ══════════════════════════════════════════════════════
+// SUBMIT TO GOOGLE SHEET
+// ══════════════════════════════════════════════════════
+async function submitData(mode) {
+  // Only unique (non-dup) entries
+  const unique = sessions[mode].filter(h => !h.isDup);
+  if (!unique.length) { showToast('⚠️ ไม่มีรายการที่จะส่ง','warn'); return; }
+
+  const btn  = document.getElementById('submit-'+mode);
+  const spin = document.getElementById('spin-'+mode);
+  btn.disabled = true;
+  spin.style.display = 'inline-block';
+
+  const typeMap   = { in:'IN', out:'OUT', upd:'UPDATE' };
+  const scanType  = typeMap[mode];
+  const timestamp = new Date().toLocaleString('th-TH', { timeZone:'Asia/Bangkok' });
+
+  // rows: [ [Timestamp, ScanType, Barcode, Quantity], ... ]
+  const rows = unique.map(h => [timestamp, scanType, h.barcode, h.qty]);
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ scanType, rows })
+    });
+    const json = await res.json();
+
+    if (json.status === 'ok') {
+      showToast(`✅ ส่งสำเร็จ ${unique.length} รายการ`, 'ok');
+      clearSession(mode);
+    } else {
+      showToast('❌ ผิดพลาด: ' + (json.message || 'unknown'), 'error');
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showToast('❌ เชื่อมต่อไม่ได้: ' + e.message, 'error');
+    btn.disabled = false;
+  } finally {
+    spin.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// VISUAL HELPERS
+// ══════════════════════════════════════════════════════
+function flashCard(mode, isDup=false) {
+  const card = document.getElementById('card-'+mode);
+  card.classList.remove('flash-in','flash-out','flash-upd','flash-dup');
+  void card.offsetWidth;
+  card.classList.add(isDup ? 'flash-dup' : 'flash-'+mode);
+}
+function vibrate() { if(navigator.vibrate) navigator.vibrate(60); }
+
+function setStatus(mode, type, msg) {
+  const el = document.getElementById('status-'+mode);
+  el.className = 'status-bar';
+  if (type==='ok')    el.classList.add('ok');
+  if (type==='warn')  el.classList.add('warn');
+  if (type==='info')  el.classList.add('info');
+  if (type==='error') el.classList.add('error');
+  if (type==='dup')   el.classList.add('dup');
+  el.textContent = msg;
+}
+
+function showToast(msg, type='ok') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast toast-'+type;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3100);
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
