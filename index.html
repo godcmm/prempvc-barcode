@@ -179,13 +179,13 @@
   .btn-start {
     background: var(--mode, #1a7a36);
     color: #fff;
-    flex: 1;
+    flex-shrink: 0;
   }
   .btn-stop {
     background: var(--mode-light, #e6f4eb);
     color: var(--mode-dark, #0d3318);
     border: 1.5px solid var(--mode, #1a7a36);
-    flex: 1;
+    flex-shrink: 0;
   }
   .btn-clear {
     background: var(--surf2);
@@ -468,7 +468,7 @@
 
   <!-- HEADER -->
   <div class="header" id="app-header">
-    <div class="header-logo">📦 Warehouse Scanner</div>
+    <div class="header-logo">Prempvc</div>
     <div class="header-tabs">
       <button class="tab-btn active" id="tab-in"  onclick="switchTab('in')">IN</button>
       <button class="tab-btn"        id="tab-out" onclick="switchTab('out')">OUT</button>
@@ -716,7 +716,7 @@ function onScan(mode, text) {
     document.getElementById('upd-note').value    = '';
     document.getElementById('update-form').classList.add('visible');
     setStatus('upd','info','🔍 '+text);
-    flashCam(mode, false); vibrate();
+    flashCam(mode, false); vibrate(); beepOk();
     return;
   }
 
@@ -726,10 +726,12 @@ function onScan(mode, text) {
   if (isDup) {
     setStatus(mode,'dup','⚠️ Duplicate: '+text);
     flashCam(mode, true);
+    beepFail();
   } else {
     scanned[mode].add(text);
     setStatus(mode, mode==='in'?'ok':'warn', `✅ ${mode.toUpperCase()}: ${text}`);
     flashCam(mode, false);
+    beepOk();
   }
   vibrate();
   renderSession(mode);
@@ -755,8 +757,10 @@ function confirmUpdate() {
   if (!isDup) {
     scanned['upd'].add(code);
     setStatus('upd','ok',`✅ Added: ${code}`);
+    beepOk();
   } else {
     setStatus('upd','dup',`⚠️ Duplicate: ${code}`);
+    beepFail();
   }
 
   document.getElementById('update-form').classList.remove('visible');
@@ -891,6 +895,56 @@ function showToast(msg, type='ok') {
   t.textContent = msg;
   wrap.appendChild(t);
   setTimeout(() => t.remove(), 3100);
+}
+
+// ══════════════════════════════════════════════════════
+// SOUND EFFECTS  (Web Audio API — no external files)
+// ══════════════════════════════════════════════════════
+let audioCtx = null;
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// ✅ Success beep — short clean "teed" ~1000 Hz
+function beepOk() {
+  try {
+    const ctx = getCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1050, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch(e) {}
+}
+
+// ❌ Duplicate / error beep — two short low buzzes "แอ๊ด แอ๊ด"
+function beepFail() {
+  try {
+    const ctx = getCtx();
+    [0, 0.18].forEach(delay => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, ctx.currentTime + delay);
+      osc.frequency.linearRampToValueAtTime(160, ctx.currentTime + delay + 0.12);
+      gain.gain.setValueAtTime(0.0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.14);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.15);
+    });
+  } catch(e) {}
 }
 
 function esc(s) {
