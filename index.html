@@ -2,13 +2,12 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Warehouse Scanner</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-  /* ── Base palette ── */
   :root {
     --bg:      #E7E2CF;
     --surface: #f0ece0;
@@ -19,160 +18,103 @@
     --warning: #a05c00;
     --mono: 'JetBrains Mono', monospace;
     --sans: 'IBM Plex Sans Thai', sans-serif;
-
-    /* ── Mode accent — changed by JS on switchTab() ── */
-    --mode:        #1a5c2a;   /* default = IN green */
-    --mode-dark:   #0d3318;
-    --mode-light:  #e8f5ee;
-    --mode-text:   #fff;
   }
 
-  /* Per-mode presets applied to <body> via data-mode attribute */
-  body[data-mode="in"]  {
-    --mode:       #1a7a36;
-    --mode-dark:  #0d3d1b;
-    --mode-light: #e6f4eb;
-    --mode-text:  #fff;
-  }
-  body[data-mode="out"] {
-    --mode:       #8B1A1A;
-    --mode-dark:  #4a0d0d;
-    --mode-light: #fdeaea;
-    --mode-text:  #fff;
-  }
-  body[data-mode="upd"] {
-    --mode:       #1a3a6b;
-    --mode-dark:  #0d1e3d;
-    --mode-light: #e8eef8;
-    --mode-text:  #fff;
-  }
+  body[data-mode="in"]  { --mode:#1a7a36; --mode-dark:#0d3318; --mode-light:#e6f4eb; }
+  body[data-mode="out"] { --mode:#8B1A1A; --mode-dark:#4a0d0d; --mode-light:#fdeaea; }
+  body[data-mode="upd"] { --mode:#1a3a6b; --mode-dark:#0d1e3d; --mode-light:#e8eef8; }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
+  html, body {
+    height: 100%;
     font-family: var(--sans);
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
     overflow-x: hidden;
+  }
+
+  /* ── LAYOUT: full-height column ── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh; /* dynamic viewport height — handles mobile browser chrome */
+    max-width: 480px;
+    margin: 0 auto;
   }
 
   /* ── HEADER ── */
   .header {
-    background: var(--mode-dark);
-    padding: 0 14px;
+    background: var(--mode-dark, #0d3318);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    min-height: 54px;
-    gap: 10px;
-    transition: background 0.25s;
+    padding: 0 12px;
+    flex-shrink: 0;
+    min-height: 48px;
+    transition: background 0.22s;
+    gap: 8px;
   }
   .header-logo {
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.07em;
-    color: rgba(255,255,255,0.9);
+    color: rgba(255,255,255,0.88);
     white-space: nowrap;
     flex-shrink: 0;
   }
-
-  /* ── TAB BUTTONS inside header ── */
   .header-tabs {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     align-items: center;
+    flex-shrink: 0;
   }
   .tab-btn {
-    /* ~25vw each, capped at 110px */
-    width: clamp(72px, 25vw, 110px);
-    padding: 7px 4px;
-    border: 1.5px solid rgba(255,255,255,0.25);
-    border-radius: 6px;
+    /* exactly ~25vw but capped — fits 3 buttons + logo */
+    width: clamp(58px, 22vw, 96px);
+    padding: 6px 2px;
+    border: 1.5px solid rgba(255,255,255,0.22);
+    border-radius: 5px;
     background: transparent;
-    color: rgba(255,255,255,0.55);
+    color: rgba(255,255,255,0.48);
     font-family: var(--sans);
-    font-size: 0.76rem;
+    font-size: 0.7rem;
     font-weight: 700;
     cursor: pointer;
     letter-spacing: 0.07em;
-    transition: all 0.18s;
+    transition: all 0.16s;
     text-align: center;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
-  .tab-btn:hover {
-    color: #fff;
-    border-color: rgba(255,255,255,0.5);
-    background: rgba(255,255,255,0.1);
-  }
-  /* Active tab — filled with mode colour */
   .tab-btn.active {
-    background: var(--mode);
+    background: var(--mode, #1a7a36);
     color: #fff;
-    border-color: var(--mode);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    border-color: var(--mode, #1a7a36);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.22);
   }
 
-  /* ── MAIN ── */
-  .main { padding: 14px; max-width: 600px; margin: 0 auto; }
-
-  /* ── PANEL ── */
-  .panel { display: none; animation: fadeIn 0.2s ease; }
-  .panel.active { display: block; }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-
-  /* ── SCANNER CARD ── */
-  .scanner-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 4px rgba(43,29,26,.07);
-    transition: box-shadow 0.2s;
-  }
-  .scanner-card-header {
-    padding: 9px 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--surf2);
-  }
-  .scanner-card-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .cam-select {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 0.72rem;
-    padding: 4px 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    outline: none;
-  }
-
-  /* ── QR READER ── */
-  .qr-reader-wrap {
+  /* ── CAMERA (full-width, 50dvh) ── */
+  .camera-wrap {
     position: relative;
-    background: #111;
-    min-height: 240px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%;
+    height: 50dvh;
+    flex-shrink: 0;
+    background: #0a0a0a;
+    overflow: hidden;
   }
-  .qr-reader-wrap > div[id^="reader"] { width:100%!important; }
-  .qr-reader-wrap > div[id^="reader"] > * { border:none!important; }
+  /* html5-qrcode injects a <video> — fill the container */
+  .camera-wrap > div { width: 100% !important; height: 100% !important; }
+  .camera-wrap > div > * { border: none !important; }
+  .camera-wrap video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  /* hide the default html5-qrcode UI chrome */
+  #reader-in img, #reader-out img, #reader-upd img { display: none !important; }
 
+  /* Scan overlay */
   .scan-overlay {
     position: absolute;
     inset: 0;
@@ -182,283 +124,277 @@
     justify-content: center;
   }
   .scan-box {
-    width: 180px; height: 180px;
-    border-radius: 12px;
+    width: 46vw;
+    height: 46vw;
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 10px;
     position: relative;
-    border-color: var(--mode);
+    border-color: var(--mode, #1a7a36);
   }
   .scan-box::before,.scan-box::after,
   .scan-box span::before,.scan-box span::after {
-    content: '';
-    position: absolute;
-    width: 28px; height: 28px;
-    border-color: inherit;
-    border-style: solid;
+    content:''; position:absolute;
+    width:24px; height:24px;
+    border-color:inherit; border-style:solid;
   }
-  .scan-box::before  { top:0;    left:0;  border-width:3px 0 0 3px; border-radius:6px 0 0 0; }
-  .scan-box::after   { top:0;    right:0; border-width:3px 3px 0 0; border-radius:0 6px 0 0; }
-  .scan-box span::before { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 6px; }
-  .scan-box span::after  { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 6px 0; }
+  .scan-box::before  { top:0;    left:0;  border-width:3px 0 0 3px; border-radius:5px 0 0 0; }
+  .scan-box::after   { top:0;    right:0; border-width:3px 3px 0 0; border-radius:0 5px 0 0; }
+  .scan-box span::before { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 5px; }
+  .scan-box span::after  { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 5px 0; }
   .scan-line {
-    position: absolute;
-    left:10%; width:80%;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--mode);
+    position:absolute; left:8%; width:84%;
+    height:2px; border-radius:2px;
+    background: var(--mode, #1a7a36);
     animation: scanMove 2s linear infinite;
     opacity: 0.9;
   }
-  @keyframes scanMove { 0%{top:10%} 100%{top:90%} }
+  @keyframes scanMove { 0%{top:8%} 100%{top:92%} }
 
-  /* ── CONTROLS ── */
-  .scanner-controls {
-    padding: 10px 14px;
+  /* ── CONTROLS (below camera) ── */
+  .controls {
     display: flex;
-    gap: 8px;
+    gap: 7px;
+    padding: 8px 12px;
     background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
   .btn {
-    padding: 8px 16px;
+    padding: 7px 14px;
     border: none;
-    border-radius: 7px;
+    border-radius: 6px;
     font-family: var(--sans);
-    font-size: 0.8rem;
+    font-size: 0.74rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.14s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     letter-spacing: 0.04em;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn:active { transform: scale(0.96); }
-
-  /* START button uses mode colour */
+  .btn:active { transform: scale(0.95); }
   .btn-start {
-    background: var(--mode);
-    color: var(--mode-text);
+    background: var(--mode, #1a7a36);
+    color: #fff;
+    flex: 1;
   }
   .btn-stop {
-    background: var(--mode-light);
-    color: var(--mode-dark);
-    border: 1.5px solid var(--mode);
+    background: var(--mode-light, #e6f4eb);
+    color: var(--mode-dark, #0d3318);
+    border: 1.5px solid var(--mode, #1a7a36);
+    flex: 1;
   }
   .btn-clear {
     background: var(--surf2);
     color: var(--muted);
     border: 1px solid var(--border);
-    margin-left: auto;
+    flex-shrink: 0;
   }
-  .btn-start:hover { filter: brightness(1.08); }
 
   /* ── STATUS BAR ── */
   .status-bar {
-    margin: 0 0 12px;
-    padding: 9px 13px;
-    border-radius: 7px;
-    font-size: 0.79rem;
+    padding: 6px 12px;
+    font-size: 0.7rem;
     font-family: var(--mono);
     background: var(--surf2);
-    border: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     color: var(--muted);
-    min-height: 36px;
+    min-height: 28px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.25s;
+    gap: 6px;
+    transition: all 0.2s;
+    flex-shrink: 0;
   }
-  .status-bar.ok    { background: var(--mode-light); border-color: var(--mode); color: var(--mode-dark); }
+  .status-bar.ok    { background: var(--mode-light, #e6f4eb); border-color: var(--mode); color: var(--mode-dark); }
   .status-bar.warn  { background: #fff3e0; border-color: var(--warning); color: var(--warning); }
   .status-bar.info  { background: var(--mode-light); border-color: var(--mode); color: var(--mode-dark); }
   .status-bar.error { background: #fde8e8; border-color: #8B1A1A; color: #8B1A1A; }
   .status-bar.dup   { background: #fff3e0; border-color: var(--warning); color: var(--warning); }
 
-  /* ── SUMMARY + SUBMIT ── */
+  /* ── SCROLLABLE CONTENT below status bar ── */
+  .scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── SUMMARY BAR (pinned at top of scroll area) ── */
   .summary-bar {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    box-shadow: 0 1px 3px rgba(43,29,26,.05);
+    padding: 10px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 10px;
   }
   .summary-label {
-    font-size: 0.7rem;
+    font-size: 0.62rem;
     color: var(--muted);
-    font-weight: 600;
-    letter-spacing: 0.05em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin-bottom: 2px;
   }
-  /* Unique code number uses mode colour */
   .summary-count {
-    font-size: 1.7rem;
+    font-size: 1.5rem;
     font-weight: 700;
     font-family: var(--mono);
-    color: var(--mode);
+    color: var(--mode, #1a7a36);
     line-height: 1;
   }
-
-  /* Send Data button uses mode colour */
   .btn-submit {
-    padding: 10px 18px;
+    padding: 9px 16px;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     font-family: var(--sans);
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.18s;
+    transition: all 0.16s;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     white-space: nowrap;
-    letter-spacing: 0.03em;
-    background: var(--mode);
-    color: var(--mode-text);
+    background: var(--mode, #1a7a36);
+    color: #fff;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-submit:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-submit:not(:disabled):hover { filter: brightness(1.1); }
-  .btn-submit:not(:disabled):active { transform: scale(0.97); }
-
+  .btn-submit:disabled { opacity: 0.32; cursor: not-allowed; }
+  .btn-submit:not(:disabled):active { transform: scale(0.96); filter: brightness(1.08); }
   .spinner {
-    width: 13px; height: 13px;
-    border: 2px solid rgba(255,255,255,0.35);
+    width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,0.3);
     border-top-color: #fff;
     border-radius: 50%;
-    animation: spin .7s linear infinite;
+    animation: spin .65s linear infinite;
     display: none;
   }
   @keyframes spin { to{transform:rotate(360deg)} }
 
   /* ── UPDATE FORM ── */
   .update-form {
+    padding: 12px;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
     display: none;
-    box-shadow: 0 1px 3px rgba(43,29,26,.05);
   }
-  .update-form.visible { display: block; animation: fadeIn .2s ease; }
-  .form-row { margin-bottom: 10px; }
+  .update-form.visible { display: block; }
+  .form-row { margin-bottom: 8px; }
   .form-label {
     display: block;
-    font-size: 0.7rem;
+    font-size: 0.64rem;
     font-weight: 700;
     color: var(--muted);
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
   }
   .form-input {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: 6px;
     color: var(--text);
     font-family: var(--sans);
-    font-size: 0.9rem;
-    padding: 9px 11px;
+    font-size: 0.85rem;
+    padding: 8px 10px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.18s;
   }
   .form-input:focus { border-color: var(--mode); }
   .form-input-mono { font-family: var(--mono); }
-  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .btn-confirm-upd {
     width: 100%;
-    padding: 10px;
-    background: var(--mode-dark);
+    padding: 9px;
+    background: var(--mode-dark, #0d3318);
     color: #fff;
     border: none;
-    border-radius: 7px;
+    border-radius: 6px;
     font-family: var(--sans);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.14s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-confirm-upd:hover { opacity: .85; }
+  .btn-confirm-upd:active { opacity: .8; }
 
-  /* ── HISTORY TABLE ── */
-  .history-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 14px;
-    box-shadow: 0 1px 3px rgba(43,29,26,.05);
-  }
-  .history-header {
-    padding: 9px 14px;
-    border-bottom: 1px solid var(--border);
+  /* ── CODE LIST ── */
+  .list-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 7px 12px;
     background: var(--surf2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
-  .history-title {
-    font-size: .75rem;
+  .list-title {
+    font-size: 0.65rem;
     font-weight: 700;
     color: var(--muted);
-    letter-spacing: .07em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .history-count {
-    font-size: .7rem;
+  .list-count {
+    font-size: 0.65rem;
     background: var(--bg);
     color: var(--muted);
-    padding: 2px 8px;
+    padding: 1px 7px;
     border-radius: 100px;
     font-family: var(--mono);
     border: 1px solid var(--border);
   }
-  .history-list { max-height: 340px; overflow-y: auto; }
-  .history-empty {
-    padding: 28px 16px;
+  .list-body { flex: 1; overflow-y: auto; }
+  .list-empty {
+    padding: 24px 16px;
     text-align: center;
     color: var(--muted);
-    font-size: .82rem;
+    font-size: 0.78rem;
   }
-  .history-item {
-    padding: 9px 14px;
+  .list-item {
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     display: grid;
     grid-template-columns: auto 1fr auto auto;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
-    animation: fadeIn .18s ease;
+    animation: fadeIn .15s ease;
   }
-  .history-item:last-child { border-bottom: none; }
-  .history-item.dup-item { opacity: .45; }
-  .history-type {
-    width: 28px; height: 28px;
+  .list-item:last-child { border-bottom: none; }
+  .list-item.dup-item { opacity: .42; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  .item-badge {
+    width: 26px; height: 26px;
     border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: .67rem;
+    font-size: 0.62rem;
     font-weight: 700;
     flex-shrink: 0;
-    background: var(--mode-light);
-    color: var(--mode-dark);
-    border: 1px solid var(--mode);
+    background: var(--mode-light, #e6f4eb);
+    color: var(--mode-dark, #0d3318);
+    border: 1px solid var(--mode, #1a7a36);
   }
-  .type-dup {
+  .item-badge.dup {
     background: #fff3e0;
     color: var(--warning);
     border-color: var(--warning);
-    font-size: .6rem;
+    font-size: 0.56rem;
   }
-  .history-info { min-width: 0; }
-  .history-product {
-    font-size: .83rem;
+  .item-info { min-width: 0; }
+  .item-code {
+    font-size: 0.78rem;
     font-weight: 600;
     font-family: var(--mono);
     white-space: nowrap;
@@ -466,241 +402,228 @@
     text-overflow: ellipsis;
     color: var(--text);
   }
-  .history-sub { font-size: .7rem; color: var(--muted); margin-top: 2px; }
-  .history-sub.dup-label { color: var(--warning); font-weight: 600; }
-  .history-time { font-size: .7rem; color: var(--muted); font-family: var(--mono); text-align: right; flex-shrink: 0; }
-  .qty-badge {
+  .item-sub { font-size: 0.64rem; color: var(--muted); margin-top: 1px; }
+  .item-sub.dup-label { color: var(--warning); font-weight: 600; }
+  .item-time { font-size: 0.62rem; color: var(--muted); font-family: var(--mono); text-align: right; flex-shrink: 0; }
+  .item-qty {
+    font-size: 0.64rem;
+    font-family: var(--mono);
     background: var(--surf2);
     border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 2px 7px;
-    font-size: .72rem;
-    font-family: var(--mono);
-    color: var(--text);
+    border-radius: 4px;
+    padding: 1px 6px;
     flex-shrink: 0;
   }
 
   /* ── TOAST ── */
   #toast-wrap {
     position: fixed;
-    bottom: 20px;
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 999;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     pointer-events: none;
+    width: max-content;
+    max-width: 90vw;
   }
   .toast {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 9px;
-    padding: 9px 16px;
-    font-size: .82rem;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: .76rem;
     font-weight: 600;
-    box-shadow: 0 4px 16px rgba(43,29,26,.15);
-    animation: toastIn .3s ease, toastOut .3s ease 2.7s forwards;
-    white-space: nowrap;
+    box-shadow: 0 3px 14px rgba(43,29,26,.15);
+    animation: toastIn .25s ease, toastOut .25s ease 2.75s forwards;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     color: var(--text);
   }
   .toast-ok    { border-color: #2d8f5a; color: #1a5c36; }
   .toast-warn  { border-color: var(--warning); color: var(--warning); }
   .toast-error { border-color: #8B1A1A; color: #8B1A1A; }
-  @keyframes toastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes toastIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
   @keyframes toastOut { from{opacity:1} to{opacity:0} }
 
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-  /* ── Flash ── */
-  @keyframes flashMode {
-    0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--mode) 0%,   transparent); }
-    30%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--mode) 35%,  transparent); }
-    100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--mode) 0%,   transparent); }
-  }
-  @keyframes flashDup {
-    0%   { box-shadow: 0 0 0 0   rgba(160,92,0,0); }
-    30%  { box-shadow: 0 0 0 10px rgba(160,92,0,.35); }
-    100% { box-shadow: 0 0 0 0   rgba(160,92,0,0); }
-  }
-  .flash-ok  { animation: flashMode .6s ease; }
-  .flash-dup { animation: flashDup  .6s ease; }
+  /* Flash */
+  @keyframes flashOk  { 0%{opacity:1} 15%{opacity:.6} 100%{opacity:1} }
+  @keyframes flashDup { 0%{box-shadow:0 0 0 0 rgba(160,92,0,0)} 30%{box-shadow:0 0 0 8px rgba(160,92,0,.3)} 100%{box-shadow:0 0 0 0 rgba(160,92,0,0)} }
+  .flash-ok  { animation: flashOk  .4s ease; }
+  .flash-dup { animation: flashDup .5s ease; }
 </style>
 </head>
 <body data-mode="in">
 
 <div id="toast-wrap"></div>
 
-<!-- HEADER + TABS in one bar -->
-<div class="header" id="app-header">
-  <div class="header-logo">📦 Warehouse Scanner</div>
-  <div class="header-tabs">
-    <button class="tab-btn active" id="tab-in"  onclick="switchTab('in')">IN</button>
-    <button class="tab-btn"        id="tab-out" onclick="switchTab('out')">OUT</button>
-    <button class="tab-btn"        id="tab-upd" onclick="switchTab('upd')">UPDATE</button>
-  </div>
-</div>
+<div class="app">
 
-<div class="main">
-
-<!-- ══ PANEL IN ══ -->
-<div class="panel active" id="panel-in">
-  <div class="scanner-card" id="card-in">
-    <div class="scanner-card-header">
-      <div class="scanner-card-title">SCAN HERE</div>
-      <select class="cam-select" id="cam-select-in"></select>
+  <!-- HEADER -->
+  <div class="header" id="app-header">
+    <div class="header-logo">📦 Warehouse Scanner</div>
+    <div class="header-tabs">
+      <button class="tab-btn active" id="tab-in"  onclick="switchTab('in')">IN</button>
+      <button class="tab-btn"        id="tab-out" onclick="switchTab('out')">OUT</button>
+      <button class="tab-btn"        id="tab-upd" onclick="switchTab('upd')">UPDATE</button>
     </div>
-    <div class="qr-reader-wrap">
+  </div>
+
+  <!-- ══ PANEL IN ══ -->
+  <div class="panel active" id="panel-in" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+
+    <!-- Camera: full-width, 50dvh -->
+    <div class="camera-wrap" id="cam-in">
       <div id="reader-in"></div>
       <div class="scan-overlay" id="overlay-in" style="display:none;">
         <div class="scan-box"><span></span><div class="scan-line"></div></div>
       </div>
     </div>
-    <div class="scanner-controls">
+
+    <!-- Controls -->
+    <div class="controls">
       <button class="btn btn-start" id="btn-start-in" onclick="startScanner('in')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-in"  onclick="stopScanner('in')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('in')">↺ RESET</button>
     </div>
-  </div>
 
-  <div class="status-bar" id="status-in">⏳ Ready to scan...</div>
+    <!-- Status -->
+    <div class="status-bar" id="status-in">⏳ Ready to scan...</div>
 
-  <div class="summary-bar">
-    <div>
-      <div class="summary-label">Unique Code</div>
-      <div class="summary-count" id="unique-in">0</div>
-    </div>
-    <button class="btn-submit" id="submit-in" onclick="submitData('in')" disabled>
-      <span class="spinner" id="spin-in"></span>☁ Send Data..
-    </button>
-  </div>
+    <!-- Scroll area: summary + list -->
+    <div class="scroll-area">
+      <div class="summary-bar">
+        <div>
+          <div class="summary-label">Unique Code</div>
+          <div class="summary-count" id="unique-in">0</div>
+        </div>
+        <button class="btn-submit" id="submit-in" onclick="submitData('in')" disabled>
+          <span class="spinner" id="spin-in"></span>☁ Send Data..
+        </button>
+      </div>
 
-  <div class="history-card">
-    <div class="history-header">
-      <div class="history-title">Code List (check before send)</div>
-      <div class="history-count" id="count-in">0</div>
+      <div class="list-header">
+        <div class="list-title">Code List (check before send)</div>
+        <div class="list-count" id="count-in">0</div>
+      </div>
+      <div class="list-body" id="hist-in">
+        <div class="list-empty">No items yet — press START to scan</div>
+      </div>
     </div>
-    <div class="history-list" id="hist-in">
-      <div class="history-empty">No items yet — press START to scan</div>
-    </div>
-  </div>
-</div>
 
-<!-- ══ PANEL OUT ══ -->
-<div class="panel" id="panel-out">
-  <div class="scanner-card" id="card-out">
-    <div class="scanner-card-header">
-      <div class="scanner-card-title">SCAN HERE</div>
-      <select class="cam-select" id="cam-select-out"></select>
-    </div>
-    <div class="qr-reader-wrap">
+  </div><!-- /panel-in -->
+
+  <!-- ══ PANEL OUT ══ -->
+  <div class="panel" id="panel-out" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+
+    <div class="camera-wrap" id="cam-out">
       <div id="reader-out"></div>
       <div class="scan-overlay" id="overlay-out" style="display:none;">
         <div class="scan-box"><span></span><div class="scan-line"></div></div>
       </div>
     </div>
-    <div class="scanner-controls">
+
+    <div class="controls">
       <button class="btn btn-start" id="btn-start-out" onclick="startScanner('out')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-out"  onclick="stopScanner('out')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('out')">↺ RESET</button>
     </div>
-  </div>
 
-  <div class="status-bar" id="status-out">⏳ Ready to scan...</div>
+    <div class="status-bar" id="status-out">⏳ Ready to scan...</div>
 
-  <div class="summary-bar">
-    <div>
-      <div class="summary-label">Unique Code</div>
-      <div class="summary-count" id="unique-out">0</div>
-    </div>
-    <button class="btn-submit" id="submit-out" onclick="submitData('out')" disabled>
-      <span class="spinner" id="spin-out"></span>☁ Send Data..
-    </button>
-  </div>
+    <div class="scroll-area">
+      <div class="summary-bar">
+        <div>
+          <div class="summary-label">Unique Code</div>
+          <div class="summary-count" id="unique-out">0</div>
+        </div>
+        <button class="btn-submit" id="submit-out" onclick="submitData('out')" disabled>
+          <span class="spinner" id="spin-out"></span>☁ Send Data..
+        </button>
+      </div>
 
-  <div class="history-card">
-    <div class="history-header">
-      <div class="history-title">Code List (check before send)</div>
-      <div class="history-count" id="count-out">0</div>
+      <div class="list-header">
+        <div class="list-title">Code List (check before send)</div>
+        <div class="list-count" id="count-out">0</div>
+      </div>
+      <div class="list-body" id="hist-out">
+        <div class="list-empty">No items yet — press START to scan</div>
+      </div>
     </div>
-    <div class="history-list" id="hist-out">
-      <div class="history-empty">No items yet — press START to scan</div>
-    </div>
-  </div>
-</div>
 
-<!-- ══ PANEL UPDATE ══ -->
-<div class="panel" id="panel-upd">
-  <div class="scanner-card" id="card-upd">
-    <div class="scanner-card-header">
-      <div class="scanner-card-title">SCAN HERE</div>
-      <select class="cam-select" id="cam-select-upd"></select>
-    </div>
-    <div class="qr-reader-wrap">
+  </div><!-- /panel-out -->
+
+  <!-- ══ PANEL UPDATE ══ -->
+  <div class="panel" id="panel-upd" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+
+    <div class="camera-wrap" id="cam-upd">
       <div id="reader-upd"></div>
       <div class="scan-overlay" id="overlay-upd" style="display:none;">
         <div class="scan-box"><span></span><div class="scan-line"></div></div>
       </div>
     </div>
-    <div class="scanner-controls">
+
+    <div class="controls">
       <button class="btn btn-start" id="btn-start-upd" onclick="startScanner('upd')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-upd"  onclick="stopScanner('upd')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('upd')">↺ RESET</button>
     </div>
-  </div>
 
-  <div class="status-bar" id="status-upd">⏳ Ready to scan...</div>
+    <div class="status-bar" id="status-upd">⏳ Ready to scan...</div>
 
-  <div class="update-form" id="update-form">
-    <div class="form-row">
-      <label class="form-label">Scanned Code</label>
-      <input class="form-input form-input-mono" id="upd-code" readonly placeholder="— waiting for scan —">
-    </div>
-    <div class="form-row-2">
-      <div>
-        <label class="form-label">Current Qty</label>
-        <input class="form-input" id="upd-current" type="number" min="0" placeholder="0">
+    <div class="scroll-area">
+      <!-- Update form -->
+      <div class="update-form" id="update-form">
+        <div class="form-row">
+          <label class="form-label">Scanned Code</label>
+          <input class="form-input form-input-mono" id="upd-code" readonly placeholder="— waiting for scan —">
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label class="form-label">Current Qty</label>
+            <input class="form-input" id="upd-current" type="number" min="0" placeholder="0">
+          </div>
+          <div>
+            <label class="form-label">New Qty</label>
+            <input class="form-input" id="upd-new" type="number" min="0" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Note (optional)</label>
+          <input class="form-input" id="upd-note" type="text" placeholder="Recount / Adjust...">
+        </div>
+        <button class="btn-confirm-upd" onclick="confirmUpdate()">✅ Confirm & Add to List</button>
       </div>
-      <div>
-        <label class="form-label">New Qty</label>
-        <input class="form-input" id="upd-new" type="number" min="0" placeholder="0">
+
+      <div class="summary-bar">
+        <div>
+          <div class="summary-label">Unique Code</div>
+          <div class="summary-count" id="unique-upd">0</div>
+        </div>
+        <button class="btn-submit" id="submit-upd" onclick="submitData('upd')" disabled>
+          <span class="spinner" id="spin-upd"></span>☁ Send Data..
+        </button>
+      </div>
+
+      <div class="list-header">
+        <div class="list-title">Code List (check before send)</div>
+        <div class="list-count" id="count-upd">0</div>
+      </div>
+      <div class="list-body" id="hist-upd">
+        <div class="list-empty">No items yet — scan a product first</div>
       </div>
     </div>
-    <div class="form-row">
-      <label class="form-label">Note (optional)</label>
-      <input class="form-input" id="upd-note" type="text" placeholder="Recount / Adjust / etc.">
-    </div>
-    <button class="btn-confirm-upd" onclick="confirmUpdate()">✅ Confirm & Add to List</button>
-  </div>
 
-  <div class="summary-bar">
-    <div>
-      <div class="summary-label">Unique Code</div>
-      <div class="summary-count" id="unique-upd">0</div>
-    </div>
-    <button class="btn-submit" id="submit-upd" onclick="submitData('upd')" disabled>
-      <span class="spinner" id="spin-upd"></span>☁ Send Data..
-    </button>
-  </div>
+  </div><!-- /panel-upd -->
 
-  <div class="history-card">
-    <div class="history-header">
-      <div class="history-title">Code List (check before send)</div>
-      <div class="history-count" id="count-upd">0</div>
-    </div>
-    <div class="history-list" id="hist-upd">
-      <div class="history-empty">No items yet — scan a product first</div>
-    </div>
-  </div>
-</div>
-
-</div><!-- /main -->
+</div><!-- /app -->
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -717,47 +640,29 @@ const sessions  = { in: [], out: [], upd: [] };
 const scanned   = { in: new Set(), out: new Set(), upd: new Set() };
 let lastScan     = { in:'', out:'', upd:'' };
 let lastScanTime = { in:0,  out:0,  upd:0 };
-let pendingUpdCode = null;
 
 // ══════════════════════════════════════════════════════
-// INIT CAMERAS
-// ══════════════════════════════════════════════════════
-async function loadCameras() {
-  try {
-    const cameras = await Html5Qrcode.getCameras();
-    ['in','out','upd'].forEach(m => {
-      const sel = document.getElementById('cam-select-'+m);
-      sel.innerHTML = cameras.map((c,i) =>
-        `<option value="${c.id}">${c.label || 'Camera '+(i+1)}</option>`
-      ).join('');
-    });
-  } catch(e) { console.warn('getCameras:', e); }
-}
-loadCameras();
-
-// ══════════════════════════════════════════════════════
-// TAB SWITCH  — changes data-mode on <body> so all
-//              CSS custom properties update at once
+// TAB SWITCH
 // ══════════════════════════════════════════════════════
 function switchTab(mode) {
-  // panels
   ['in','out','upd'].forEach(m => {
-    document.getElementById('panel-'+m).classList.remove('active');
+    const p = document.getElementById('panel-'+m);
+    p.classList.remove('active');
+    p.style.display = 'none';
     document.getElementById('tab-'+m).classList.remove('active');
   });
-  document.getElementById('panel-'+mode).classList.add('active');
+  const p = document.getElementById('panel-'+mode);
+  p.classList.add('active');
+  p.style.display = 'flex';
   document.getElementById('tab-'+mode).classList.add('active');
-
-  // set data-mode → triggers CSS variable cascade
   document.body.setAttribute('data-mode', mode);
 }
 
 // ══════════════════════════════════════════════════════
-// SCANNER START / STOP
+// SCANNER START / STOP  — always back camera
 // ══════════════════════════════════════════════════════
 async function startScanner(mode) {
   if (running[mode]) return;
-  const camId = document.getElementById('cam-select-'+mode).value;
 
   if (!scanners[mode]) {
     scanners[mode] = new Html5Qrcode('reader-'+mode, { verbose: false });
@@ -765,9 +670,11 @@ async function startScanner(mode) {
 
   try {
     await scanners[mode].start(
-      camId || { facingMode: 'environment' },
-      { fps:12, qrbox:{width:200,height:200}, aspectRatio:1.2,
-        supportedScanTypes:[Html5QrcodeScanType.SCAN_TYPE_CAMERA] },
+      { facingMode: 'environment' },          // always back camera
+      { fps: 15,
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] },
       (text) => onScan(mode, text),
       () => {}
     );
@@ -775,9 +682,9 @@ async function startScanner(mode) {
     document.getElementById('overlay-'+mode).style.display = 'flex';
     document.getElementById('btn-start-'+mode).style.display = 'none';
     document.getElementById('btn-stop-'+mode).style.display  = 'flex';
-    setStatus(mode, 'scanning', '🎯 Scanning... bring barcode close to camera');
+    setStatus(mode, 'scanning', '🎯 Scanning...');
   } catch(e) {
-    setStatus(mode, 'error', '⚠️ Cannot open camera: ' + e.message);
+    setStatus(mode, 'error', '⚠️ ' + e.message);
   }
 }
 
@@ -792,7 +699,7 @@ async function stopScanner(mode) {
 }
 
 // ══════════════════════════════════════════════════════
-// ON SCAN SUCCESS
+// ON SCAN
 // ══════════════════════════════════════════════════════
 function onScan(mode, text) {
   const now = Date.now();
@@ -803,14 +710,13 @@ function onScan(mode, text) {
   const time = new Date().toLocaleTimeString('th-TH');
 
   if (mode === 'upd') {
-    pendingUpdCode = text;
     document.getElementById('upd-code').value    = text;
     document.getElementById('upd-current').value = '';
     document.getElementById('upd-new').value     = '';
     document.getElementById('upd-note').value    = '';
     document.getElementById('update-form').classList.add('visible');
-    setStatus('upd','info','🔍 Scanned: '+text+' — fill in qty below');
-    flashCard(mode, false); vibrate();
+    setStatus('upd','info','🔍 '+text);
+    flashCam(mode, false); vibrate();
     return;
   }
 
@@ -818,12 +724,12 @@ function onScan(mode, text) {
   sessions[mode].unshift({ barcode:text, qty:1, time, isDup });
 
   if (isDup) {
-    setStatus(mode,'dup','⚠️ Duplicate: '+text+' — not counted');
-    flashCard(mode, true);
+    setStatus(mode,'dup','⚠️ Duplicate: '+text);
+    flashCam(mode, true);
   } else {
     scanned[mode].add(text);
     setStatus(mode, mode==='in'?'ok':'warn', `✅ ${mode.toUpperCase()}: ${text}`);
-    flashCard(mode, false);
+    flashCam(mode, false);
   }
   vibrate();
   renderSession(mode);
@@ -831,7 +737,7 @@ function onScan(mode, text) {
 }
 
 // ══════════════════════════════════════════════════════
-// CONFIRM UPDATE ENTRY
+// CONFIRM UPDATE
 // ══════════════════════════════════════════════════════
 function confirmUpdate() {
   const code    = document.getElementById('upd-code').value;
@@ -839,8 +745,8 @@ function confirmUpdate() {
   const newQty  = document.getElementById('upd-new').value;
   const note    = document.getElementById('upd-note').value;
 
-  if (!code)   { showToast('⚠️ Please scan a product first','warn'); return; }
-  if (!newQty) { showToast('⚠️ Please enter new quantity','warn');   return; }
+  if (!code)   { showToast('⚠️ Scan a product first','warn');    return; }
+  if (!newQty) { showToast('⚠️ Enter new quantity','warn');       return; }
 
   const isDup = scanned['upd'].has(code);
   const time  = new Date().toLocaleTimeString('th-TH');
@@ -848,22 +754,21 @@ function confirmUpdate() {
 
   if (!isDup) {
     scanned['upd'].add(code);
-    setStatus('upd','ok',`✅ Added: ${code} (${current||'?'} → ${newQty})`);
+    setStatus('upd','ok',`✅ Added: ${code}`);
   } else {
-    setStatus('upd','dup',`⚠️ Duplicate: ${code} — not counted`);
+    setStatus('upd','dup',`⚠️ Duplicate: ${code}`);
   }
 
   document.getElementById('update-form').classList.remove('visible');
   ['upd-code','upd-current','upd-new','upd-note'].forEach(id =>
-    { document.getElementById(id).value = ''; }
+    document.getElementById(id).value = ''
   );
-  pendingUpdCode = null;
   renderSession('upd');
   updateSubmitBtn('upd');
 }
 
 // ══════════════════════════════════════════════════════
-// RENDER TABLE
+// RENDER
 // ══════════════════════════════════════════════════════
 const modeLabel = { in:'IN', out:'OUT', upd:'UPD' };
 
@@ -876,31 +781,28 @@ function renderSession(mode) {
   document.getElementById('unique-'+mode).textContent = unique;
 
   if (!arr.length) {
-    list.innerHTML = '<div class="history-empty">No items yet</div>';
+    list.innerHTML = '<div class="list-empty">No items yet</div>';
     return;
   }
 
   list.innerHTML = arr.map(h => {
-    const typeClass = h.isDup ? 'history-type type-dup' : 'history-type';
-    const typeText  = h.isDup ? 'DUP' : modeLabel[mode];
-    const itemClass = h.isDup ? 'history-item dup-item' : 'history-item';
+    const badgeClass = h.isDup ? 'item-badge dup' : 'item-badge';
+    const badgeText  = h.isDup ? 'DUP' : modeLabel[mode];
+    const rowClass   = h.isDup ? 'list-item dup-item' : 'list-item';
 
-    let subText = '';
-    if (h.isDup) {
-      subText = '<div class="history-sub dup-label">⚠️ Duplicate — not counted</div>';
-    } else if (mode === 'upd') {
-      subText = `<div class="history-sub">${esc(String(h.current))} → ${esc(String(h.qty))}${h.note?' · '+esc(h.note):''}</div>`;
-    }
+    let sub = '';
+    if (h.isDup) sub = '<div class="item-sub dup-label">⚠️ Duplicate — not counted</div>';
+    else if (mode==='upd') sub = `<div class="item-sub">${esc(String(h.current))} → ${esc(String(h.qty))}${h.note?' · '+esc(h.note):''}</div>`;
 
     return `
-      <div class="${itemClass}">
-        <div class="${typeClass}">${typeText}</div>
-        <div class="history-info">
-          <div class="history-product">${esc(h.barcode)}</div>
-          ${subText}
+      <div class="${rowClass}">
+        <div class="${badgeClass}">${badgeText}</div>
+        <div class="item-info">
+          <div class="item-code">${esc(h.barcode)}</div>
+          ${sub}
         </div>
-        <div class="qty-badge">×${h.qty}</div>
-        <div class="history-time">${h.time}</div>
+        <div class="item-qty">×${h.qty}</div>
+        <div class="item-time">${h.time}</div>
       </div>`;
   }).join('');
 }
@@ -910,7 +812,7 @@ function updateSubmitBtn(mode) {
 }
 
 // ══════════════════════════════════════════════════════
-// CLEAR SESSION
+// CLEAR
 // ══════════════════════════════════════════════════════
 function clearSession(mode) {
   sessions[mode] = [];
@@ -922,7 +824,7 @@ function clearSession(mode) {
 }
 
 // ══════════════════════════════════════════════════════
-// SUBMIT TO GOOGLE SHEET
+// SUBMIT
 // ══════════════════════════════════════════════════════
 async function submitData(mode) {
   const unique = sessions[mode].filter(h => !h.isDup);
@@ -939,22 +841,21 @@ async function submitData(mode) {
   const rows = unique.map(h => [timestamp, scanType, h.barcode, h.qty]);
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res  = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ scanType, rows })
     });
     const json = await res.json();
-
     if (json.status === 'ok') {
-      showToast(`✅ Sent ${unique.length} item(s) successfully`, 'ok');
+      showToast(`✅ Sent ${unique.length} item(s)`, 'ok');
       clearSession(mode);
     } else {
-      showToast('❌ Error: ' + (json.message || 'unknown'), 'error');
+      showToast('❌ Error: '+(json.message||'unknown'), 'error');
       btn.disabled = false;
     }
   } catch(e) {
-    showToast('❌ Connection failed: ' + e.message, 'error');
+    showToast('❌ Failed: '+e.message, 'error');
     btn.disabled = false;
   } finally {
     spin.style.display = 'none';
@@ -962,15 +863,15 @@ async function submitData(mode) {
 }
 
 // ══════════════════════════════════════════════════════
-// VISUAL HELPERS
+// HELPERS
 // ══════════════════════════════════════════════════════
-function flashCard(mode, isDup=false) {
-  const card = document.getElementById('card-'+mode);
-  card.classList.remove('flash-ok','flash-dup');
-  void card.offsetWidth;
-  card.classList.add(isDup ? 'flash-dup' : 'flash-ok');
+function flashCam(mode, isDup) {
+  const el = document.getElementById('cam-'+mode);
+  el.classList.remove('flash-ok','flash-dup');
+  void el.offsetWidth;
+  el.classList.add(isDup ? 'flash-dup' : 'flash-ok');
 }
-function vibrate() { if(navigator.vibrate) navigator.vibrate(60); }
+function vibrate() { if(navigator.vibrate) navigator.vibrate(55); }
 
 function setStatus(mode, type, msg) {
   const el = document.getElementById('status-'+mode);
