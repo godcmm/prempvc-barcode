@@ -278,55 +278,6 @@
   }
   @keyframes spin { to{transform:rotate(360deg)} }
 
-  /* ── UPDATE FORM ── */
-  .update-form {
-    padding: 12px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: none;
-  }
-  .update-form.visible { display: block; }
-  .form-row { margin-bottom: 8px; }
-  .form-label {
-    display: block;
-    font-size: 0.64rem;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .form-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 0.85rem;
-    padding: 8px 10px;
-    outline: none;
-    transition: border-color 0.18s;
-  }
-  .form-input:focus { border-color: var(--mode); }
-  .form-input-mono { font-family: var(--mono); }
-  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .btn-confirm-upd {
-    width: 100%;
-    padding: 9px;
-    background: var(--mode-dark, #0d3318);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-family: var(--sans);
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.14s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn-confirm-upd:active { opacity: .8; }
-
   /* ── CODE LIST ── */
   .list-header {
     display: flex;
@@ -579,29 +530,6 @@
     <div class="status-bar" id="status-upd">⏳ Ready to scan...</div>
 
     <div class="scroll-area">
-      <!-- Update form -->
-      <div class="update-form" id="update-form">
-        <div class="form-row">
-          <label class="form-label">Scanned Code</label>
-          <input class="form-input form-input-mono" id="upd-code" readonly placeholder="— waiting for scan —">
-        </div>
-        <div class="form-row-2">
-          <div>
-            <label class="form-label">Current Qty</label>
-            <input class="form-input" id="upd-current" type="number" min="0" placeholder="0">
-          </div>
-          <div>
-            <label class="form-label">New Qty</label>
-            <input class="form-input" id="upd-new" type="number" min="0" placeholder="0">
-          </div>
-        </div>
-        <div class="form-row">
-          <label class="form-label">Note (optional)</label>
-          <input class="form-input" id="upd-note" type="text" placeholder="Recount / Adjust...">
-        </div>
-        <button class="btn-confirm-upd" onclick="confirmUpdate()">✅ Confirm & Add to List</button>
-      </div>
-
       <div class="summary-bar">
         <div>
           <div class="summary-label">Unique Code</div>
@@ -708,18 +636,6 @@ function onScan(mode, text) {
   lastScanTime[mode] = now;
 
   const time = new Date().toLocaleTimeString('th-TH');
-
-  if (mode === 'upd') {
-    document.getElementById('upd-code').value    = text;
-    document.getElementById('upd-current').value = '';
-    document.getElementById('upd-new').value     = '';
-    document.getElementById('upd-note').value    = '';
-    document.getElementById('update-form').classList.add('visible');
-    setStatus('upd','info','🔍 '+text);
-    flashCam(mode, false); vibrate(); beepOk();
-    return;
-  }
-
   const isDup = scanned[mode].has(text);
   sessions[mode].unshift({ barcode:text, qty:1, time, isDup });
 
@@ -729,46 +645,13 @@ function onScan(mode, text) {
     beepFail();
   } else {
     scanned[mode].add(text);
-    setStatus(mode, mode==='in'?'ok':'warn', `✅ ${mode.toUpperCase()}: ${text}`);
+    setStatus(mode, 'ok', `✅ ${mode.toUpperCase()}: ${text}`);
     flashCam(mode, false);
     beepOk();
   }
   vibrate();
   renderSession(mode);
   updateSubmitBtn(mode);
-}
-
-// ══════════════════════════════════════════════════════
-// CONFIRM UPDATE
-// ══════════════════════════════════════════════════════
-function confirmUpdate() {
-  const code    = document.getElementById('upd-code').value;
-  const current = document.getElementById('upd-current').value;
-  const newQty  = document.getElementById('upd-new').value;
-  const note    = document.getElementById('upd-note').value;
-
-  if (!code)   { showToast('⚠️ Scan a product first','warn');    return; }
-  if (!newQty) { showToast('⚠️ Enter new quantity','warn');       return; }
-
-  const isDup = scanned['upd'].has(code);
-  const time  = new Date().toLocaleTimeString('th-TH');
-  sessions['upd'].unshift({ barcode:code, qty:parseInt(newQty), current:current||'?', note, time, isDup });
-
-  if (!isDup) {
-    scanned['upd'].add(code);
-    setStatus('upd','ok',`✅ Added: ${code}`);
-    beepOk();
-  } else {
-    setStatus('upd','dup',`⚠️ Duplicate: ${code}`);
-    beepFail();
-  }
-
-  document.getElementById('update-form').classList.remove('visible');
-  ['upd-code','upd-current','upd-new','upd-note'].forEach(id =>
-    document.getElementById(id).value = ''
-  );
-  renderSession('upd');
-  updateSubmitBtn('upd');
 }
 
 // ══════════════════════════════════════════════════════
@@ -796,7 +679,6 @@ function renderSession(mode) {
 
     let sub = '';
     if (h.isDup) sub = '<div class="item-sub dup-label">⚠️ Duplicate — not counted</div>';
-    else if (mode==='upd') sub = `<div class="item-sub">${esc(String(h.current))} → ${esc(String(h.qty))}${h.note?' · '+esc(h.note):''}</div>`;
 
     return `
       <div class="${rowClass}">
@@ -824,7 +706,6 @@ function clearSession(mode) {
   renderSession(mode);
   updateSubmitBtn(mode);
   setStatus(mode,'idle','↺ List cleared');
-  if (mode==='upd') document.getElementById('update-form').classList.remove('visible');
 }
 
 // ══════════════════════════════════════════════════════
