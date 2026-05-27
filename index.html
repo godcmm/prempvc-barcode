@@ -193,6 +193,32 @@
     border: 1px solid var(--border);
     flex-shrink: 0;
   }
+  /* ── TORCH BUTTON ── */
+  .btn-torch {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surf2);
+    color: var(--muted);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: auto;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+  }
+  .btn-torch.on {
+    background: #fffbe6;
+    border-color: #d4a000;
+    color: #b07d00;
+    box-shadow: 0 0 8px rgba(212,160,0,0.35);
+  }
+  .btn-torch:active { transform: scale(0.92); }
 
   /* ── STATUS BAR ── */
   .status-bar {
@@ -443,6 +469,7 @@
       <button class="btn btn-start" id="btn-start-in" onclick="startScanner('in')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-in"  onclick="stopScanner('in')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('in')">↺ RESET</button>
+      <button class="btn-torch" id="torch-in" onclick="toggleTorch('in')" title="Flashlight">🔦</button>
     </div>
 
     <!-- Status -->
@@ -485,6 +512,7 @@
       <button class="btn btn-start" id="btn-start-out" onclick="startScanner('out')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-out"  onclick="stopScanner('out')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('out')">↺ RESET</button>
+      <button class="btn-torch" id="torch-out" onclick="toggleTorch('out')" title="Flashlight">🔦</button>
     </div>
 
     <div class="status-bar" id="status-out">⏳ Ready to scan...</div>
@@ -525,6 +553,7 @@
       <button class="btn btn-start" id="btn-start-upd" onclick="startScanner('upd')">▶ START</button>
       <button class="btn btn-stop"  id="btn-stop-upd"  onclick="stopScanner('upd')" style="display:none;">⏹ STOP</button>
       <button class="btn btn-clear" onclick="clearSession('upd')">↺ RESET</button>
+      <button class="btn-torch" id="torch-upd" onclick="toggleTorch('upd')" title="Flashlight">🔦</button>
     </div>
 
     <div class="status-bar" id="status-upd">⏳ Ready to scan...</div>
@@ -557,7 +586,7 @@
 // ══════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw12fsZpK3yHMzqSq2UCTAn0hiSBtPvmEnMpJEABzIAXTRAVLqon4cIYpUrWZ5HZakGOA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhIPpZw0nRpdvO7yzQx51G_vZvfR9gXuwmaIkujbJYQrLWE7qWL08n_Ln9Rs_EQEjACw/exec';
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -620,6 +649,11 @@ async function stopScanner(mode) {
   if (!running[mode]) return;
   try { await scanners[mode].stop(); scanners[mode] = null; } catch(e) {}
   running[mode] = false;
+  // reset torch
+  torchState[mode] = false;
+  const tb = document.getElementById('torch-'+mode);
+  tb.classList.remove('on');
+  tb.textContent = '🔦';
   document.getElementById('btn-start-'+mode).style.display = 'flex';
   document.getElementById('btn-stop-'+mode).style.display  = 'none';
   document.getElementById('overlay-'+mode).style.display   = 'none';
@@ -745,6 +779,50 @@ async function submitData(mode) {
   } finally {
     spin.style.display = 'none';
   }
+}
+
+// ══════════════════════════════════════════════════════
+// TORCH / FLASHLIGHT
+// ══════════════════════════════════════════════════════
+const torchState = { in: false, out: false, upd: false };
+
+async function toggleTorch(mode) {
+  if (!running[mode]) {
+    showToast('⚠️ Start scanner first', 'warn');
+    return;
+  }
+  const btn = document.getElementById('torch-'+mode);
+  const newState = !torchState[mode];
+
+  try {
+    // html5-qrcode exposes the MediaStream via getRunningTrackCapabilities
+    const stream = await getMediaStream(mode);
+    if (!stream) { showToast('⚠️ Torch not supported', 'warn'); return; }
+
+    const track = stream.getVideoTracks()[0];
+    const caps  = track.getCapabilities ? track.getCapabilities() : {};
+
+    if (!caps.torch) {
+      showToast('⚠️ Torch not available on this device', 'warn');
+      return;
+    }
+
+    await track.applyConstraints({ advanced: [{ torch: newState }] });
+    torchState[mode] = newState;
+    btn.classList.toggle('on', newState);
+    btn.textContent = newState ? '💡' : '🔦';
+  } catch(e) {
+    showToast('⚠️ Cannot control torch', 'warn');
+  }
+}
+
+function getMediaStream(mode) {
+  try {
+    // Access the internal video element that html5-qrcode created
+    const video = document.querySelector('#reader-'+mode+' video');
+    if (video && video.srcObject) return Promise.resolve(video.srcObject);
+    return Promise.resolve(null);
+  } catch(e) { return Promise.resolve(null); }
 }
 
 // ══════════════════════════════════════════════════════
